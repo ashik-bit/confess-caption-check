@@ -1,0 +1,12 @@
+<h2>Confession Checker</h2>
+
+<form method="post">
+  <textarea name="text" rows="6" cols="50">{{ text or "" }}</textarea><br>
+  <button>Check</button>
+</form>
+
+{% if result %}
+<p>Confession Type: {{ "Yes" if result.confession else "No" }}</p>
+<p>Abusive Words: {{ result.abusive_count }}</p>
+<p>Risk Level: {{ result.risk }}</p>
+{% endif %}
