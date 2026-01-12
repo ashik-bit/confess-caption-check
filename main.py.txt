@@ -1,0 +1,66 @@
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+import secrets
+from abusive_words import ABUSIVE_WORDS
+from keys import VALID_KEYS
+
+ADMIN_PASSWORD = "ADMIN@123"
+
+app = FastAPI()
+templates = Jinja2Templates(directory="templates")
+
+
+@app.get("/", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+
+@app.post("/login")
+async def login(key: str = Form(...)):
+    if key in VALID_KEYS:
+        return RedirectResponse("/checker", status_code=302)
+    return HTMLResponse("❌ Invalid Access Key", status_code=403)
+
+
+@app.get("/checker", response_class=HTMLResponse)
+async def checker_page(request: Request):
+    return templates.TemplateResponse("checker.html", {"request": request, "result": None})
+
+
+@app.post("/checker", response_class=HTMLResponse)
+async def check_text(request: Request, text: str = Form(...)):
+    text_lower = text.lower()
+    abusive_count = 0
+
+    for w in ABUSIVE_WORDS:
+        abusive_count += text_lower.count(w)
+
+    risk = "Safe" if abusive_count == 0 else "Medium" if abusive_count <= 2 else "High"
+
+    result = {
+        "confession": len(text.split()) > 15,
+        "abusive_count": abusive_count,
+        "risk": risk
+    }
+
+    return templates.TemplateResponse(
+        "checker.html",
+        {"request": request, "result": result, "text": text}
+    )
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request):
+    return templates.TemplateResponse("admin.html", {"request": request})
+
+
+@app.post("/admin/generate", response_class=HTMLResponse)
+async def generate_key(password: str = Form(...)):
+    if password != ADMIN_PASSWORD:
+        return HTMLResponse("❌ Wrong Admin Password", status_code=403)
+
+    new_key = secrets.token_urlsafe(8)
+    VALID_KEYS.add(new_key)
+
+    return HTMLResponse(f"<h3>✅ New Access Key</h3><p>{new_key}</p>")
